@@ -1,0 +1,324 @@
+import sys
+import numpy as np
+import nibabel as nib
+import pyvista as pv
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
+                             QPushButton, QFileDialog, QWidget, QLabel, QSlider, 
+                             QSpinBox, QGroupBox, QCheckBox, QComboBox, QStatusBar,
+                             QSplitter, QFrame)
+from PyQt5.QtCore import Qt
+from pyvistaqt import QtInteractor
+from skimage import measure
+import os
+
+
+class NiftiViewer(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.nifti_data = None
+        self.current_mesh = None
+        self.volume_actor = None
+        self.initUI()
+        
+    def initUI(self):
+        self.setWindowTitle('NIFTI 3D Viewer - PyQt + PyVista')
+        self.setGeometry(100, 100, 1200, 800)
+        
+        # Create central widget and main layout
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        
+        # Create splitter for resizable panels
+        splitter = QSplitter(Qt.Horizontal)
+        central_widget.setLayout(QHBoxLayout())
+        central_widget.layout().addWidget(splitter)
+        
+        # Create control panel
+        control_panel = self.create_control_panel()
+        splitter.addWidget(control_panel)
+        
+        # Create 3D viewer
+        self.plotter = QtInteractor(self)
+        splitter.addWidget(self.plotter.interactor)
+        
+        # Set splitter proportions
+        splitter.setSizes([300, 900])
+        
+        # Setup PyVista plotter
+        self.plotter.set_background('white')
+        self.plotter.add_axes()
+        
+        # Status bar
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
+        self.statusBar.showMessage('Ready - Load a NIFTI file to begin')
+        
+    def create_control_panel(self):
+        # Create control panel widget
+        control_widget = QWidget()
+        control_widget.setMaximumWidth(300)
+        control_widget.setMinimumWidth(250)
+        layout = QVBoxLayout(control_widget)
+        
+        # File loading section
+        file_group = QGroupBox("File Operations")
+        file_layout = QVBoxLayout(file_group)
+        
+        self.load_btn = QPushButton('Load NIFTI File')
+        self.load_btn.clicked.connect(self.load_nifti_file)
+        file_layout.addWidget(self.load_btn)
+        
+        self.file_label = QLabel('No file loaded')
+        self.file_label.setWordWrap(True)
+        file_layout.addWidget(self.file_label)
+        
+        layout.addWidget(file_group)
+        
+        # Visualization options
+        viz_group = QGroupBox("Visualization Options")
+        viz_layout = QVBoxLayout(viz_group)
+        
+        # Render mode selection
+        viz_layout.addWidget(QLabel('Render Mode:'))
+        self.render_mode = QComboBox()
+        self.render_mode.addItems(['Volume Rendering', 'Surface (Isosurface)', 'Slices'])
+        self.render_mode.currentTextChanged.connect(self.update_visualization)
+        viz_layout.addWidget(self.render_mode)
+        
+        # Threshold for surface rendering
+        viz_layout.addWidget(QLabel('Threshold:'))
+        self.threshold_slider = QSlider(Qt.Horizontal)
+        self.threshold_slider.setRange(0, 1000)
+        self.threshold_slider.setValue(500)
+        self.threshold_slider.valueChanged.connect(self.update_threshold)
+        viz_layout.addWidget(self.threshold_slider)
+        
+        self.threshold_label = QLabel('Threshold: 500')
+        viz_layout.addWidget(self.threshold_label)
+        
+        # Opacity control
+        viz_layout.addWidget(QLabel('Opacity:'))
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setRange(0, 100)
+        self.opacity_slider.setValue(80)
+        self.opacity_slider.valueChanged.connect(self.update_opacity)
+        viz_layout.addWidget(self.opacity_slider)
+        
+        self.opacity_label = QLabel('Opacity: 80%')
+        viz_layout.addWidget(self.opacity_label)
+        
+        # Smoothing option
+        self.smooth_checkbox = QCheckBox('Smooth Surface')
+        self.smooth_checkbox.setChecked(True)
+        self.smooth_checkbox.stateChanged.connect(self.update_visualization)
+        viz_layout.addWidget(self.smooth_checkbox)
+        
+        layout.addWidget(viz_group)
+        
+        # Color options
+        color_group = QGroupBox("Color Options")
+        color_layout = QVBoxLayout(color_group)
+        
+        color_layout.addWidget(QLabel('Colormap:'))
+        self.colormap_combo = QComboBox()
+        self.colormap_combo.addItems(['viridis', 'plasma', 'inferno', 'magma', 'hot', 'cool', 'gray'])
+        self.colormap_combo.currentTextChanged.connect(self.update_colormap)
+        color_layout.addWidget(self.colormap_combo)
+        
+        layout.addWidget(color_group)
+        
+        # Data information
+        info_group = QGroupBox("Data Information")
+        info_layout = QVBoxLayout(info_group)
+        
+        self.info_label = QLabel('No data loaded')
+        self.info_label.setWordWrap(True)
+        info_layout.addWidget(self.info_label)
+        
+        layout.addWidget(info_group)
+        
+        # Reset view button
+        reset_btn = QPushButton('Reset View')
+        reset_btn.clicked.connect(self.reset_view)
+        layout.addWidget(reset_btn)
+        
+        # Add stretch to push everything to top
+        layout.addStretch()
+        
+        return control_widget
+    
+    def load_nifti_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, 
+            'Load NIFTI File', 
+            '', 
+            'NIFTI files (*.nii *.nii.gz);;All files (*)'
+        )
+        
+        if file_path:
+            try:
+                # Load NIFTI file
+                nifti_img = nib.load(file_path)
+                self.nifti_data = nifti_img.get_fdata()
+                
+                # Update file label
+                filename = os.path.basename(file_path)
+                self.file_label.setText(f'Loaded: {filename}')
+                
+                # Update data info
+                shape = self.nifti_data.shape
+                data_min, data_max = self.nifti_data.min(), self.nifti_data.max()
+                info_text = f"Shape: {shape}\nMin: {data_min:.2f}\nMax: {data_max:.2f}\nData type: {self.nifti_data.dtype}"
+                self.info_label.setText(info_text)
+                
+                # Update threshold slider range
+                self.threshold_slider.setRange(int(data_min), int(data_max))
+                self.threshold_slider.setValue(int((data_min + data_max) / 2))
+                
+                # Update visualization
+                self.update_visualization()
+                
+                self.statusBar.showMessage(f'Loaded: {filename}')
+                
+            except Exception as e:
+                self.statusBar.showMessage(f'Error loading file: {str(e)}')
+    
+    def update_visualization(self):
+        if self.nifti_data is None:
+            return
+            
+        # Clear previous visualization
+        self.plotter.clear()
+        self.plotter.add_axes()
+        
+        render_mode = self.render_mode.currentText()
+        
+        if render_mode == 'Volume Rendering':
+            self.render_volume()
+        elif render_mode == 'Surface (Isosurface)':
+            self.render_surface()
+        elif render_mode == 'Slices':
+            self.render_slices()
+            
+        self.plotter.reset_camera()
+    
+    def render_volume(self):
+        """Render volume using PyVista's volume rendering"""
+        try:
+            # Create PyVista grid
+            grid = pv.ImageData(dimensions=self.nifti_data.shape)
+            grid.point_data['values'] = self.nifti_data.flatten(order='F')
+            
+            # Volume rendering
+            opacity = self.opacity_slider.value() / 100.0
+            self.volume_actor = self.plotter.add_volume(
+                grid, 
+                cmap=self.colormap_combo.currentText(),
+                opacity='sigmoid',
+                scalar_bar_args={'title': 'Intensity'}
+            )
+            
+        except Exception as e:
+            self.statusBar.showMessage(f'Error in volume rendering: {str(e)}')
+    
+    def render_surface(self):
+        """Render isosurface using marching cubes"""
+        try:
+            threshold = self.threshold_slider.value()
+            
+            # Generate isosurface using marching cubes
+            verts, faces, normals, values = measure.marching_cubes(
+                self.nifti_data, 
+                level=threshold
+            )
+            
+            # Create PyVista mesh
+            faces_pv = np.c_[np.full(len(faces), 3), faces]
+            mesh = pv.PolyData(verts, faces_pv)
+            
+            # Smooth if requested
+            if self.smooth_checkbox.isChecked():
+                mesh = mesh.smooth(n_iter=50, relaxation_factor=0.1)
+            
+            # Add mesh to plotter
+            opacity = self.opacity_slider.value() / 100.0
+            self.current_mesh = self.plotter.add_mesh(
+                mesh,
+                color='lightblue',
+                opacity=opacity,
+                smooth_shading=True,
+                scalar_bar_args={'title': 'Surface'}
+            )
+            
+        except Exception as e:
+            self.statusBar.showMessage(f'Error in surface rendering: {str(e)}')
+    
+    def render_slices(self):
+        """Render orthogonal slices"""
+        try:
+            # Create PyVista grid
+            grid = pv.ImageData(dimensions=self.nifti_data.shape)
+            grid.point_data['values'] = self.nifti_data.flatten(order='F')
+            
+            # Add orthogonal slices
+            slices = grid.slice_orthogonal()
+            
+            opacity = self.opacity_slider.value() / 100.0
+            self.plotter.add_mesh(
+                slices,
+                cmap=self.colormap_combo.currentText(),
+                opacity=opacity,
+                scalar_bar_args={'title': 'Intensity'}
+            )
+            
+        except Exception as e:
+            self.statusBar.showMessage(f'Error in slice rendering: {str(e)}')
+    
+    def update_threshold(self):
+        threshold = self.threshold_slider.value()
+        self.threshold_label.setText(f'Threshold: {threshold}')
+        
+        if self.render_mode.currentText() == 'Surface (Isosurface)':
+            self.update_visualization()
+    
+    def update_opacity(self):
+        opacity = self.opacity_slider.value()
+        self.opacity_label.setText(f'Opacity: {opacity}%')
+        
+        # Update current visualization
+        self.update_visualization()
+    
+    def update_colormap(self):
+        """Update colormap for current visualization"""
+        if self.nifti_data is not None:
+            self.update_visualization()
+    
+    def reset_view(self):
+        """Reset camera view"""
+        self.plotter.reset_camera()
+        self.plotter.view_isometric()
+
+
+def main():
+    app = QApplication(sys.argv)
+    
+    # Check for required packages and provide helpful error message
+    try:
+        import nibabel
+        import pyvista
+        import pyvistaqt
+        from skimage import measure
+    except ImportError as e:
+        print(f"Missing required package: {e}")
+        print("Please install required packages using:")
+        print("pip install nibabel pyvista pyvistaqt PyQt5 scikit-image numpy")
+        return
+    
+    viewer = NiftiViewer()
+    viewer.show()
+    
+    sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main()
