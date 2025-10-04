@@ -32,4 +32,18 @@ Tools used in Development:
 •	Claude AI
 •	VS Code
 
+some photos 
+
+![9](https://github.com/user-attachments/assets/e528a227-0c48-4b8e-aa50-ccd2da86e0f3)
+![8](https://github.com/user-attachments/assets/1ea40312-f114-4870-81bc-21500c8268d0)
+![7](https://github.com/user-attachments/assets/85c8fe26-387d-4bed-8129-54758d768858)
+![6](https://github.com/user-attachments/assets/5727fe7e-4723-4742-9866-04a4c966a60c)
+![5](https://github.com/user-attachments/assets/272ee74d-4031-4165-be34-1ac77282b1b0)
+![4](https://github.com/user-attachments/assets/0b02e52a-67d7-4368-bf9a-3890b1b2e0b3)
+![3](https://github.com/user-attachments/assets/b5c901e3-68ac-420d-bff4-a8e79290b68b)
+![2](https://github.com/user-attachments/assets/d2f29b58-95f7-45ed-a3cb-2ead818f6aef)
+![1](https://github.com/user-attachments/assets/40b6274c-122e-4b94-9155-51502ffe033a)
+![12](https://github.com/user-attachments/assets/969295b6-1d55-40f9-ae67-7362ff2bea51)
+![11](https://github.com/user-attachments/assets/cf3b684a-54cd-41c6-a7f1-c7b42f6dc26a)
+![10](https://github.com/user-attachments/assets/029e269b-0567-4879-976c-5da8b0b2c9c0)
 
