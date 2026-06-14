@@ -36,7 +36,6 @@ some photos
 
 ![9](https://github.com/user-attachments/assets/e528a227-0c48-4b8e-aa50-ccd2da86e0f3)
 ![8](https://github.com/user-attachments/assets/1ea40312-f114-4870-81bc-21500c8268d0)
-![7](https://github.com/user-attachments/assets/85c8fe26-387d-4bed-8129-54758d768858)
 ![6](https://github.com/user-attachments/assets/5727fe7e-4723-4742-9866-04a4c966a60c)
 ![5](https://github.com/user-attachments/assets/272ee74d-4031-4165-be34-1ac77282b1b0)
 ![4](https://github.com/user-attachments/assets/0b02e52a-67d7-4368-bf9a-3890b1b2e0b3)
